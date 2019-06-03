@@ -2,7 +2,9 @@ const bcrypt = require("bcryptjs");
 
 const Event = require("../../models/event");
 const User = require("../../models/user");
+const Booking = require("../../models/booking");
 
+// helper functions that return events and users from the database
 const events = async eventIds => {
   try {
     const events = await Event.find({ _id: { $in: eventIds } });
@@ -33,6 +35,7 @@ const user = async userId => {
 };
 
 module.exports = {
+  // resolver for the 'events' query
   events: async () => {
     try {
       const events = await Event.find();
@@ -48,6 +51,25 @@ module.exports = {
       throw err;
     }
   },
+
+  // resolver for the 'bookings' query
+  bookings: async () => {
+    try {
+      const bookings = await Booking.find();
+      return bookings.map(booking => {
+        return {
+          ...booking._doc,
+          _id: booking.id,
+          createdAt: new Date(booking._doc.createdAt).toISOString(),
+          updatedAt: new Date(booking._doc.updatedAt).toISOString()
+        };
+      });
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  // resolver for the 'createEvent' mutation
   createEvent: async args => {
     const event = new Event({
       title: args.eventInput.title,
@@ -56,7 +78,9 @@ module.exports = {
       date: new Date(args.eventInput.date),
       creator: "5cf10fdf3c4d35277cac3fe4"
     });
+
     let createdEvent;
+
     try {
       const result = await event.save();
       createdEvent = {
@@ -79,6 +103,8 @@ module.exports = {
       throw err;
     }
   },
+
+  // resolver for the 'createUser' mutation
   createUser: async args => {
     try {
       const existingUser = await User.findOne({ email: args.userInput.email });
@@ -97,6 +123,26 @@ module.exports = {
       return { ...result._doc, password: null };
     } catch (err) {
       throw err;
+    }
+  },
+
+  // resolver for the 'bookEvent' mutation
+  bookEvent: async args => {
+    try {
+      const fetchedEvent = await Event.findOne({ _id: args.eventId });
+      const booking = new Booking({
+        user: "5cf10fdf3c4d35277cac3fe4",
+        event: fetchedEvent
+      });
+      const result = await booking.save();
+      return {
+        ...result._id,
+        _id: result.id,
+        createdAt: new Date(result._doc.createdAt).toISOString(),
+        updatedAt: new Date(result._doc.updatedAt).toISOString()
+      };
+    } catch (err) {
+      console.log(err);
     }
   }
 };
